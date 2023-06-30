@@ -142,9 +142,7 @@ Route::get('admin/getVideo', function (Request $request) {
 });
 
 
-Route::get('/flutter/{any}', function () {
-    return File::get(public_path('achamil/index.html'));
-})->where('any', '.*');
-
-
+Route::get('achamil/p1', function () {
+    return view('achamil.index');
+});
 

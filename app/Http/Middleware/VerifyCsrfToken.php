@@ -13,6 +13,7 @@ class VerifyCsrfToken extends Middleware
      */
     protected $except = [
         'admin/*', // Disable CSRF protection for routes matching the "admin/*" pattern
+        'achamil/*'
          //"getinfo"
     ];
 }
