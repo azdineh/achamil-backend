@@ -14,7 +14,8 @@
     This is a placeholder for base href that will be replaced by the value of
     the `--base-href` argument provided to `flutter build`.
   -->
-  
+
+  <base href="/storage/achamil/">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
@@ -24,20 +25,20 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="achamel_app">
-  <link rel="apple-touch-icon" src="{{ asset('achamil/icons/Icon-192.png') }}">
+  <link rel="apple-touch-icon" src="icons/Icon-192.png">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="{{ asset('achamil/favicon.png') }}"/>
+  <link rel="icon" type="image/png" href="favicon.png"/>
 
   <title>achamel_app</title>
-  <link rel="manifest"  href="{{ asset('achamil/manifest.json') }}" >
+  <link rel="manifest"  href="manifest.json" >
 
   <script>
     // The value below is injected by flutter build, do not touch.
     var serviceWorkerVersion = '1235303019';
   </script>
   <!-- This script adds the flutter initialization JS code -->
-  <script src="{{ asset('achamil/flutter.js') }}" defer></script>
+  <script src="flutter.js" defer></script>
 </head>
 <body>
   <script>
