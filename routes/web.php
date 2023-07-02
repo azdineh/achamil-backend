@@ -41,7 +41,10 @@ Route::post('admin/getinfo', function (Request $request) {
 });
 
 Route::post('admin/uploadpdf', function (Request $request) {
-    if ($request->hasFile('pdf')) {
+    Log::info('------> req received');
+
+    if ($request->hasFile('pdf') ) {
+        Log::info('------> PDF exist');
         $file = $request->file('pdf');
         $pathPdf = $file->store('pdf', 'uploads'); // The second 'uploads' refers to the disk name configured in the filesystems.php file
      
@@ -142,7 +145,7 @@ Route::get('admin/getVideo', function (Request $request) {
 });
 
 
-Route::get('achamil/p1', function () {
+Route::get('admin/p1', function () {
     return view('achamil.index');
 });
 
