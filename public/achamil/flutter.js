@@ -10,7 +10,7 @@ _flutter.loader = null;
 (function () {
   "use strict";
   /**
-   * Wraps `promise` in a timeout of the given `duration` in ms.
+   * Wraps `promise` in  a timeout of the given `duration` in ms.
    *
    * Resolves/rejects with whatever the original `promises` does, or rejects
    * if `promise` takes longer to complete than `duration`. In that case,
