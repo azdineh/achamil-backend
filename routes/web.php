@@ -22,8 +22,9 @@ Route::get('/', function () {
 });
 
 
-Route::get('/abc', function () {
-    return 'abc';
+
+Route::get('achamil/p12', function () {
+    return view('achamil.index');
 });
 
 
@@ -145,7 +146,4 @@ Route::get('admin/getVideo', function (Request $request) {
 });
 
 
-Route::get('admin/p1', function () {
-    return view('achamil.index');
-});
 
