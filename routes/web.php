@@ -29,19 +29,6 @@ Route::get('achamil/p12', function () {
 });
 
 
-Route::post('admin/getinfo', function (Request $request) {
-    // Access the parameters sent in the request
-    //$param1 = $request->input('user');
-    //$param2 = $request->input('param2');
-
-    // Process the parameters and return a response
-   return response()->json(array([
-        //'user' => $param1
-        'user'=>"zerrrr"
-    ]));
-  
-});
-
 Route::post('admin/uploadlesson.old', function (Request $request) {
     //Log::info('------> req received');
 
@@ -98,8 +85,7 @@ Route::post('admin/uploadlesson', function (Request $request) {
 });
 
 Route::post('admin/fetchlessons', function (Request $request) {
-    //Log::info('------> File path');
-    
+       
     $id_unite = $request->input('id_unite');
    
     $unites = DB::select('select * from lessons where  id_unite= ? order by order_lesson asc', [$id_unite]);
@@ -120,7 +106,8 @@ Route::post('admin/fetchfilesnames', function (Request $request) {
     //Log::info('------> File path');
     //Storage::disk("uploads")
     $disk = $request->input('disk');
-    $folderPath = "mokbil";
+    //$folderPath = "mokbil";
+    $folderPath = $request->input('main_unity');
     $files = Storage::disk($disk)->files($folderPath);
     // If you want only the file names without the full path, you can use the `basename` function
     $fileNames = array_map('basename', $files);
@@ -204,7 +191,8 @@ Route::get('admin/getPDFFileOld', function (Request $request) {
 Route::get('admin/getPDFFile', function (Request $request) {
 
     $filename = $request->query('pdf_url');
-    $filename="mokbil/".$filename;
+    //$filename="mokbil/".$filename;
+    $filename = $request->input('main_unity')."/".$filename;
 
 
     // Check if the file exists
@@ -225,7 +213,8 @@ Route::get('admin/getPDFFile', function (Request $request) {
 Route::get('admin/getVideo', function (Request $request) {
 
     $filename = $request->query('mp4_url');
-    $filename="mokbil/".$filename;
+    //$filename="mokbil/".$filename;
+    $filename = $request->input('main_unity')."/".$filename;
    
 
     if (!Storage::disk("videos")->exists($filename)) {
@@ -246,20 +235,3 @@ Route::get('admin/getVideo', function (Request $request) {
 
     return $response;
 });
-
-
-Route::get('admin/getVideoOld', function (Request $request) {
-
-    $filename = $request->query('mp4_url');
-       
-    $videoPath = Storage::disk('videos')->path('mokbil/' . $filename);
-
-    if (!file_exists($videoPath)) {
-        abort(404);
-    }
-
-    VideoStreamer::streamFile($videoPath);
-});
-
-
-
