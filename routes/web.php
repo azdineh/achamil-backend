@@ -5,6 +5,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Iman\Streamer\VideoStreamer;
 
 /*
 |--------------------------------------------------------------------------
@@ -41,8 +42,8 @@ Route::post('admin/getinfo', function (Request $request) {
   
 });
 
-Route::post('admin/uploadpdf', function (Request $request) {
-    Log::info('------> req received');
+Route::post('admin/uploadlesson.old', function (Request $request) {
+    //Log::info('------> req received');
 
     if ($request->hasFile('pdf') ) {
         Log::info('------> PDF exist');
@@ -58,8 +59,9 @@ Route::post('admin/uploadpdf', function (Request $request) {
         $lesson_title=$request->input('lesson_title');
         $id_unite=$request->input('id_unite');
         $id_sub_unite=$request->input('id_sub_unite');
+        $lesson_order=$request->input('lesson_order');
 
-        DB::insert('insert into lessons values (?, ?, ?, ?, ?, ?)', [null, $lesson_title,"",$pathPdf,$pathMp4,$id_sub_unite]);
+        DB::insert('insert into lessons values (?, ?, ?, ?, ?, ?,?)', [null, $lesson_title,"",$lesson_order,$pathPdf,$pathMp4,$id_sub_unite]);
 
         $unite = DB::select('select * from unities where  id= ?', [1]);
 
@@ -70,12 +72,37 @@ Route::post('admin/uploadpdf', function (Request $request) {
   
 });
 
+Route::post('admin/uploadlesson', function (Request $request) {
+    //Log::info('------> req received');
+
+        $lesson_title=$request->input('lesson_title');
+        $lesson_sub_title=$request->input('lesson_sub_title');
+        $lesson_order=$request->input('lesson_order');
+        $khotata_file_name=$request->input('khotata_file_name');
+        $video_file_name=$request->input('video_file_name');
+        $exerice_link=$request->input('exercice_link');
+        $id_unite=$request->input('id_unite');
+        $id_sub_unite=$request->input('id_sub_unite');
+
+
+        DB::insert('insert into lessons values (?, ?, ?, ?, ?, ?,?,?)', 
+            [null, $lesson_title,"",$lesson_order,$khotata_file_name,$video_file_name,$exerice_link,$id_sub_unite]);
+
+        $unite = DB::select('select * from unities where  id= ?', [1]);
+
+        return response()->json(['message' => 'File uploaded successfully',"unite"=>$unite[0]->title]);
+    
+
+    return response()->json(['error' => 'No file uploaded'], 400);
+  
+});
+
 Route::post('admin/fetchlessons', function (Request $request) {
     //Log::info('------> File path');
     
     $id_unite = $request->input('id_unite');
    
-    $unites = DB::select('select * from lessons where  id_unite= ?', [$id_unite]);
+    $unites = DB::select('select * from lessons where  id_unite= ? order by order_lesson asc', [$id_unite]);
 
 /*     for ($i = 0; $i < count($unites); $i++) {
         //$url = Storage::disk('uploads')->url($unites[$i]->url_pdf);
@@ -87,7 +114,65 @@ Route::post('admin/fetchlessons', function (Request $request) {
   
 });
 
-Route::get('admin/getPDFFile', function (Request $request) {
+
+
+Route::post('admin/fetchfilesnames', function (Request $request) {
+    //Log::info('------> File path');
+    //Storage::disk("uploads")
+    $disk = $request->input('disk');
+    $folderPath = "mokbil";
+    $files = Storage::disk($disk)->files($folderPath);
+    // If you want only the file names without the full path, you can use the `basename` function
+    $fileNames = array_map('basename', $files);
+
+
+    return response()->json($fileNames);
+  
+});
+
+Route::post('admin/deletelessonOld', function (Request $request) {
+    //Log::info('------> File path');
+    
+    $id_lesson = $request->input('id_lesson');
+
+    $lesson = DB::select('select * from lessons where  id= ?', [$id_lesson]);
+
+    $filepdf = $lesson[0]->url_pdf;
+    
+    if (Storage::disk("uploads")->exists($filepdf)) {
+        Storage::disk("uploads")->delete($filepdf);
+        //echo "File deleted successfully.";
+    } else {
+        //echo "File not found.";
+    }
+
+    $filemp4 = $lesson[0]->url_mp4;
+    if (Storage::disk("uploads")->exists($filemp4)) {
+        Storage::disk("uploads")->delete($filemp4);
+        //echo "File deleted successfully.";
+    } else {
+        //echo "File not found.";
+    }
+
+
+    $rows_deleted = DB::delete('delete from lessons where id=?',[$id_lesson]);
+
+    return response()->json([['rows_deleted'=>$rows_deleted]]);
+  
+});
+
+Route::post('admin/deletelesson', function (Request $request) {
+    //Log::info('------> File path');
+    
+    $id_lesson = $request->input('id_lesson');
+
+    $rows_deleted = DB::delete('delete from lessons where id=?',[$id_lesson]);
+
+    return response()->json([['rows_deleted'=>$rows_deleted]]);
+  
+});
+
+Route::get('admin/getPDFFileOld', function (Request $request) {
     //$filePath = '/path/to/storage/' . $filename; // Adjust the path to your storage location
     //Log::info('------> File path');
     //$filename = $request->input('url_pdf');
@@ -116,33 +201,64 @@ Route::get('admin/getPDFFile', function (Request $request) {
   
 });
 
+Route::get('admin/getPDFFile', function (Request $request) {
+
+    $filename = $request->query('pdf_url');
+    $filename="mokbil/".$filename;
+
+
+    // Check if the file exists
+    if (Storage::disk("khotatat")->exists($filename)) {
+        // Read the file contents
+        $fileContents = Storage::disk("khotatat")->get($filename);
+        $contentType = Storage::disk("khotatat")->mimeType($filename);
+        // Return the file contents as a response
+        return response($fileContents, 200)
+            ->header('Content-Type', $contentType);
+    }
+
+    // If the file doesn't exist, return an error response
+    return response()->json(['error' => 'File not found.'], 404);
+  
+});
+
 Route::get('admin/getVideo', function (Request $request) {
 
     $filename = $request->query('mp4_url');
-    //$filename = "4j0cLHvI7lhQYi31WL7RPuoCFOTJEu7YIUk7hHAA.mp4";
+    $filename="mokbil/".$filename;
+   
 
-    // Log::info('------> public path : '.asset('4j0cLHvI7lhQYi31WL7RPuoCFOTJEu7YIUk7hHAA.mp4'));
-
-    //$path = storage_path('app/uploads/' . $filename);
-    
-
-    if (!Storage::disk("uploads")->exists($filename)) {
+    if (!Storage::disk("videos")->exists($filename)) {
         abort(404);
     }
 
     Log::info('------> file path : '. $filename);
 
-    $file = Storage::disk("uploads")->get($filename);
-    $type = Storage::disk("uploads")->mimeType($filename);
+    $file = Storage::disk("videos")->get($filename);
+    $type = Storage::disk("videos")->mimeType($filename);
 
     $response = response($file, 200, [
         'Content-Type'        => $type,
-        'Content-Length'      => Storage::disk("uploads")->size($filename),
+        'Content-Length'      => Storage::disk("videos")->size($filename),
         'Accept-Ranges'       => 'bytes',
-        'Content-Disposition' => 'inline; filename="' .  "12008.mp4" . '"',
+        'Content-Disposition' => 'inline; filename="' .  $filename . '"',
     ]);
 
     return $response;
+});
+
+
+Route::get('admin/getVideoOld', function (Request $request) {
+
+    $filename = $request->query('mp4_url');
+       
+    $videoPath = Storage::disk('videos')->path('mokbil/' . $filename);
+
+    if (!file_exists($videoPath)) {
+        abort(404);
+    }
+
+    VideoStreamer::streamFile($videoPath);
 });
 
 
