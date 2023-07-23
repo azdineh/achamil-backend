@@ -8759,7 +8759,7 @@ anX:function anX(a,b){this.a=a
 this.b=b},
 uf(a,b,c){var s=0,r=A.N(t.j),q,p,o,n
 var $async$uf=A.J(function(d,e){if(d===1)return A.K(e,r)
-while(true)switch(s){case 0:o=A.hc("http://127.0.0.1:8000/"+a)
+while(true)switch(s){case 0:o=A.hc("http://104.248.56.218/"+a)
 n=t.N
 n=A.ay(["Content-Type","application/json; charset=UTF-8"],n,n)
 s=3
@@ -8774,7 +8774,7 @@ return A.M($async$uf,r)},
 aeh(a){var s=0,r=A.N(t.z),q,p
 var $async$aeh=A.J(function(b,c){if(b===1)return A.K(c,r)
 while(true)switch(s){case 0:s=2
-return A.U(A.aZD(A.hc("http://127.0.0.1:8000/sanctum/csrf-cookie")),$async$aeh)
+return A.U(A.aZD(A.hc("http://104.248.56.218/sanctum/csrf-cookie")),$async$aeh)
 case 2:p=c.e.h(0,"set-cookie")
 if(p==null)q=null
 else{p=B.b.SR(A.a(p.split(";"),t.s),new A.aei())
@@ -8789,7 +8789,7 @@ return A.L(null,r)}})
 return A.M($async$aeh,r)},
 aej(a,b,c,d){var s=0,r=A.N(t.N),q,p,o,n
 var $async$aej=A.J(function(e,f){if(e===1)return A.K(f,r)
-while(true)switch(s){case 0:o=A.aRY("POST",A.hc("http://127.0.0.1:8000/"+a))
+while(true)switch(s){case 0:o=A.aRY("POST",A.hc("http://104.248.56.218/"+a))
 n=o.x
 n.p(0,"khotata_file_name",b.e)
 n.p(0,"video_file_name",b.f)
