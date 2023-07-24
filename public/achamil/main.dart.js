@@ -48152,7 +48152,7 @@ $S:0}
 A.au9.prototype={
 $0(){var s=0,r=A.L(t.H),q=this
 var $async$$0=A.H(function(a,b){if(a===1)return A.I(b,r)
-while(true)switch(s){case 0:A.uv("admin/fetchfilesnames",A.ax(["disk","khotatat","main_unity","mokbil"],t.N,t.z),"").bq(new A.atW(q.a,q.b),t.P)
+while(true)switch(s){case 0:A.uv("admin/fetchfilesnames",A.ax(["disk","videos","main_unity","mokbil"],t.N,t.z),"").bq(new A.atW(q.a,q.b),t.P)
 return A.J(null,r)}})
 return A.K($async$$0,r)},
 $S:23}
