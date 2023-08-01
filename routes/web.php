@@ -23,6 +23,12 @@ Route::get('/', function () {
 });
 
 
+Route::get('admin/abcd', function () {
+    Log::info('------> req received');
+    return Response("abcd");
+});
+
+
 
 Route::get('achamil/p12', function () {
     return view('achamil.index');
@@ -60,24 +66,21 @@ Route::post('admin/uploadlesson.old', function (Request $request) {
 });
 
 Route::post('admin/uploadlesson', function (Request $request) {
-    //Log::info('------> req received');
+        
+        Log::info('------> uploadlesson req received');
 
-        $lesson_title=$request->input('lesson_title');
-        $lesson_sub_title=$request->input('lesson_sub_title');
-        $lesson_order=$request->input('lesson_order');
+        $lesson_title=$request->input('title');
+        $lesson_sub_title=$request->input('sub_title');
+        $lesson_order=$request->input('order_lesson');
         $khotata_file_name=$request->input('khotata_file_name');
         $video_file_name=$request->input('video_file_name');
-        $exerice_link=$request->input('exercice_link');
-        $id_unite=$request->input('id_unite');
-        $id_sub_unite=$request->input('id_sub_unite');
+        $id_unity=$request->input('id_unity');
 
 
-        DB::insert('insert into lessons values (?, ?, ?, ?, ?, ?,?,?)', 
-            [null, $lesson_title,"",$lesson_order,$khotata_file_name,$video_file_name,$exerice_link,$id_sub_unite]);
+        DB::insert('insert into lessons values (?, ?, ?, ?, ?, ?,?)', 
+            [null, $lesson_title,"",$lesson_order,$khotata_file_name,$video_file_name,$id_unity]);
 
-        $unite = DB::select('select * from unities where  id= ?', [1]);
-
-        return response()->json(['message' => 'File uploaded successfully',"unite"=>$unite[0]->title]);
+        return response()->json(['message' => 'File uploaded successfully']);
     
 
     return response()->json(['error' => 'No file uploaded'], 400);
@@ -86,9 +89,9 @@ Route::post('admin/uploadlesson', function (Request $request) {
 
 Route::post('admin/fetchlessons', function (Request $request) {
        
-    $id_unite = $request->input('id_unite');
+    $id_unity = $request->input('id_unity');
    
-    $unites = DB::select('select * from lessons where  id_unite= ? order by order_lesson asc', [$id_unite]);
+    $unites = DB::select('select * from lessons where id_unity= ? order by order_lesson asc', [$id_unity]);
 
 /*     for ($i = 0; $i < count($unites); $i++) {
         //$url = Storage::disk('uploads')->url($unites[$i]->url_pdf);
@@ -201,8 +204,13 @@ Route::get('admin/getPDFFile', function (Request $request) {
         $fileContents = Storage::disk("khotatat")->get($filename);
         $contentType = Storage::disk("khotatat")->mimeType($filename);
         // Return the file contents as a response
-        return response($fileContents, 200)
-            ->header('Content-Type', $contentType);
+        return response($fileContents, 200,[
+            'Content-Type'        => $contentType,
+            'Content-Length'      => Storage::disk("khotatat")->size($filename),
+            'Accept-Ranges'       => 'bytes',
+            'Content-Disposition' => 'inline; filename="' .  $filename . '"',
+        ]);
+           // ->header('Content-Type', $contentType);
     }
 
     // If the file doesn't exist, return an error response
@@ -215,13 +223,15 @@ Route::get('admin/getVideo', function (Request $request) {
     $filename = $request->query('mp4_url');
     //$filename="mokbil/".$filename;
     $filename = $request->input('main_unity')."/".$filename;
+
+    Log::info('------> file path : '. $filename);
    
 
     if (!Storage::disk("videos")->exists($filename)) {
         abort(404);
     }
 
-    Log::info('------> file path : '. $filename);
+    
 
     $file = Storage::disk("videos")->get($filename);
     $type = Storage::disk("videos")->mimeType($filename);
@@ -235,3 +245,60 @@ Route::get('admin/getVideo', function (Request $request) {
 
     return $response;
 });
+
+Route::get('admin/downloadVideo', function (Request $request) {
+
+    //$videoFileName="abcd (2).mp4";
+
+    $filename = $request->query('mp4_url');
+    $mainunity = $request->input('main_unity');
+    $filePath = Storage::disk('videos')->path($mainunity."/" . $filename);
+
+    if (!file_exists($filePath)) {
+        abort(404);
+    }
+
+    return response()->download($filePath);
+});
+
+
+Route::get('admin/getbasedata', function (Request $request) {
+
+    $mainUnity = 'mokbil';
+    $file_name=$mainUnity."_unities.json";
+    $filePath = Storage::disk('appdata')->path($file_name);    
+
+    if (!file_exists($filePath)) {
+        abort(404);
+    }
+    return response()->download($filePath);
+});
+
+
+Route::get('admin/getbasedata2', function (Request $request) {
+
+    Log::info('Get Base data ');
+    
+    $mainUnity = 'mokbil';
+    $file_name=$mainUnity."_unities.json";
+    $filePath = Storage::disk('appdata')->path($file_name);  
+    Log::info('Get Base data 2');  
+
+    if (!file_exists($filePath)) {
+        abort(404);
+    }
+    Log::info('Get Base data 3');
+    // Step 1: Read the JSON content from the file
+    $jsonContent = file_get_contents($filePath);
+    //$jsonContent = Storage::disk('appdata')->get($file_name);    
+
+    // Step 2: Convert the content to a PHP array
+    $dataArray = json_decode($jsonContent, true);
+    
+    // Step 3: Return the PHP array as a JSON response
+     return response()->json($dataArray);
+
+});
+
+
+
