@@ -69,37 +69,89 @@ Route::post('admin/uploadlesson', function (Request $request) {
         
         Log::info('------> uploadlesson req received');
 
-        $lesson_title=$request->input('title');
-        $lesson_sub_title=$request->input('sub_title');
-        $lesson_order=$request->input('order_lesson');
-        $khotata_file_name=$request->input('khotata_file_name');
-        $video_file_name=$request->input('video_file_name');
-        $id_unity=$request->input('id_unity');
+        // Start a transaction
+            DB::beginTransaction();
 
+            try {
+                $lesson_title=$request->input('title');
+                $lesson_sub_title=$request->input('sub_title');
+                $lesson_order=$request->input('order_lesson');
+                $khotata_file_name=$request->input('khotata_file_name');
+                $video_file_name=$request->input('video_file_name');
+                $id_unity=$request->input('id_unity');
 
-        DB::insert('insert into lessons values (?, ?, ?, ?, ?, ?,?)', 
-            [null, $lesson_title,"",$lesson_order,$khotata_file_name,$video_file_name,$id_unity]);
+                DB::insert('insert into lessons values (?, ?, ?, ?, ?, ?,?)', 
+                    [null, $lesson_title,"",$lesson_order,$khotata_file_name,$video_file_name,$id_unity]);
 
-        return response()->json(['message' => 'File uploaded successfully']);
-    
+                // Get the ID of the last inserted row
+                $insertedId=-1;
+                $insertedId = DB::getPdo()->lastInsertId();
 
-    return response()->json(['error' => 'No file uploaded'], 400);
+                // Commit the transaction
+                DB::commit();
+                return response()->json(['insertedId' => $insertedId]);
+
+                // Now, $insertedId contains the ID of the inserted row
+            } catch (Exception $e) {
+                // Handle any exceptions that occurred during the transaction
+                DB::rollBack();
+
+                // Handle the error gracefully
+                // For example: return a response with an error message
+                return response()->json(['error' => 'Failed to insert data']);
+            }
   
+});
+
+Route::post('/admin/savequestion', function (Request $request) {
+        
+    Log::info('------> savequestion req received');
+    // Validate the incoming request to ensure it contains JSON data
+    $request->validate([
+        'json_data' => 'required|json',
+    ]);
+
+    // Get the JSON data from the request
+    $jsonData = $request->input('json_data');
+    $main_unity = $request->input('main_unity');
+
+    // Generate a unique filename to store the JSON data (optional)
+    $fullfilename = 'exercices/'.$main_unity.'/'.'lesson_'.$request->input('id_lesson'). '.json';
+
+    // Save the JSON data to the storage/app directory
+    Storage::disk('appdata')->put($fullfilename, $jsonData);
+
+    // Optionally, you can also save the data in a specific subdirectory within storage/app
+    // For example, to save in storage/app/json_data/
+    // Storage::put('json_data/' . $filename, $jsonData);
+
+    // You can return a response to acknowledge the successful storage if needed
+    return response()->json([['message' => 'ok']]);
+
 });
 
 Route::post('admin/fetchlessons', function (Request $request) {
        
     $id_unity = $request->input('id_unity');
+    $main_unity = $request->input('main_unity');
    
-    $unites = DB::select('select * from lessons where id_unity= ? order by order_lesson asc', [$id_unity]);
+    $lessons = DB::select('select * from lessons where id_unity= ? order by order_lesson asc', [$id_unity]);
 
-/*     for ($i = 0; $i < count($unites); $i++) {
+     for ($i = 0; $i < count($lessons); $i++) {
         //$url = Storage::disk('uploads')->url($unites[$i]->url_pdf);
-        $url = asset(($unites[$i]->url_pdf));
-        $unites[$i]->url_pdf=$url;
-    } */
+        //$url = asset(($unites[$i]->url_pdf));
+        //$unites[$i]->url_pdf=$url;
+        $filename = 'exercices/'.$main_unity.'/lesson_'.$lessons[$i]->id.'.json';
+        if (Storage::disk('appdata')->exists($filename)) {
+            $jsonContent = Storage::disk('appdata')->get($filename);
+            // Parse the JSON content into a PHP array or object
+            $jsonData = json_decode($jsonContent, false); // Use true for array, false for object
+            $lessons[$i]->questions=$jsonData->questions;            
+        }
 
-    return response()->json($unites);
+    } 
+
+    return response()->json($lessons);
   
 });
 
@@ -155,9 +207,15 @@ Route::post('admin/deletelesson', function (Request $request) {
     //Log::info('------> File path');
     
     $id_lesson = $request->input('id_lesson');
+    $main_unity = $request->input('main_unity');
 
     $rows_deleted = DB::delete('delete from lessons where id=?',[$id_lesson]);
 
+    $filename = 'exercices/'.$main_unity.'/lesson_'.$id_lesson.'.json';
+    if (Storage::disk('appdata')->exists($filename)) {
+        Storage::disk('appdata')->delete($filename);
+    }
+    
     return response()->json([['rows_deleted'=>$rows_deleted]]);
   
 });
