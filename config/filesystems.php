@@ -60,6 +60,11 @@ return [
             'root' => storage_path('app/khotatat_link'),
             'url' => env('APP_URL').'/storage',
         ],
+        'questions' => [
+            'driver' => 'local',
+            'root' => storage_path('app/questions_link'),
+            'url' => env('APP_URL').'/storage',
+        ],
         'appdata' => [
             'driver' => 'local',
             'root' => storage_path('app/base_data'),

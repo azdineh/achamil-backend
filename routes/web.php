@@ -117,6 +117,7 @@ Route::post('/admin/savequestion', function (Request $request) {
 
     // Generate a unique filename to store the JSON data (optional)
     $fullfilename = 'exercices/'.$main_unity.'/'.'lesson_'.$request->input('id_lesson'). '.json';
+    Log::info('------> savequestion req received :: filename'.$fullfilename);
 
     // Save the JSON data to the storage/app directory
     Storage::disk('appdata')->put($fullfilename, $jsonData);
@@ -357,6 +358,31 @@ Route::get('admin/getbasedata2', function (Request $request) {
      return response()->json($dataArray);
 
 });
+
+
+Route::get('admin/getimage', function (Request $request) {
+
+    $image_name =  $request->query('image_name');
+    $main_unity =  $request->query('main_unity');
+    $image_path= $main_unity."/".$image_name;
+    // Check if the image exists in the storage disk
+    if (Storage::disk('questions')->exists($image_path)) {
+        $image = Storage::disk('questions')->get($image_path);
+        
+        // Determine the image MIME type
+        $mimeType = Storage::disk('questions')->mimeType($image_path);
+        
+        // Create a response with the image content and appropriate headers
+        return Response::make($image, 200, ['Content-Type' => $mimeType,'File-Name'=>$image_name]);
+    } else {
+        abort(404);
+    }
+});
+
+
+
+
+
 
 
 
