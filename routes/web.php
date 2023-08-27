@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Iman\Streamer\VideoStreamer;
+use Intervention\Image\Facades\Image;
 
 /*
 |--------------------------------------------------------------------------
@@ -259,6 +260,12 @@ Route::get('admin/getPDFFile', function (Request $request) {
 
     // Check if the file exists
     if (Storage::disk("khotatat")->exists($filename)) {
+
+        //$pdf = Image::make(Storage::disk("khotatat")->path($filename));
+
+        //$width = $pdf->width();
+        //$height = $pdf->height();
+
         // Read the file contents
         $fileContents = Storage::disk("khotatat")->get($filename);
         $contentType = Storage::disk("khotatat")->mimeType($filename);
@@ -267,7 +274,8 @@ Route::get('admin/getPDFFile', function (Request $request) {
             'Content-Type'        => $contentType,
             'Content-Length'      => Storage::disk("khotatat")->size($filename),
             'Accept-Ranges'       => 'bytes',
-            'Content-Disposition' => 'inline; filename="' .  $filename . '"',
+            'Content-Disposition' => 'inline; filename="' .  $filename . '"'
+
         ]);
            // ->header('Content-Type', $contentType);
     }
@@ -378,6 +386,223 @@ Route::get('admin/getimage', function (Request $request) {
         abort(404);
     }
 });
+
+
+Route::post('admin/saveinscription', function (Request $request) {
+        
+    Log::info('------> inscription req received');
+
+    $jsonInsc = $request->all(); // JSON data is now in PHP array
+
+    // Start a transaction
+        DB::beginTransaction();
+
+        try {
+           
+            unset($jsonInsc['user']['used_unities']);
+            $jsonInsc['user']['id']=null;
+            DB::table('ach_users')->insert([
+                $jsonInsc['user']
+            ]);
+            // Get the ID of the last inserted row
+            $insertedIdUser=-1;
+            $insertedIdUser = DB::getPdo()->lastInsertId();
+
+            
+            $jsonInsc['id_user']=$insertedIdUser;
+            $jsonInsc['id_account']=$jsonInsc['account']['id'];
+
+            unset($jsonInsc['user']);
+            unset($jsonInsc['account']);
+            $jsonInsc['id']=null;
+            DB::table('inscriptions')->insert([
+                $jsonInsc
+            ]);
+            $insertedIdInscription=-1;
+            $insertedIdInscription = DB::getPdo()->lastInsertId();
+
+
+            // Commit the transaction
+            DB::commit();
+            return response()->json([["message"=>"ok",
+                        'user_inserted_id' => $insertedIdUser,'inscription_inserted_id' => $insertedIdInscription]]);
+
+            // Now, $insertedId contains the ID of the inserted row
+        } catch (Exception $e) {
+            // Handle any exceptions that occurred during the transaction
+            DB::rollBack();
+
+            // Handle the error gracefully
+            // For example: return a response with an error message
+            return response()->json([["message"=>"error",'error' => $e]]);
+        }
+
+});
+
+
+Route::post('admin/updateinscription', function (Request $request) {
+        
+    Log::info('------> inscription req received');
+
+    $jsonInsc = $request->all(); // JSON data is now in PHP array
+
+    // Start a transaction
+        DB::beginTransaction();
+
+        try {
+            unset($jsonInsc['user']['used_unities']);
+            DB::table('ach_users')
+                ->where('id', $jsonInsc['user']['id'])
+                ->update($jsonInsc['user']);
+
+
+            $jsonInsc['id_user']=$jsonInsc['user']['id'];
+            $jsonInsc['id_account']=$jsonInsc['account']['id'];
+            unset($jsonInsc['user']);
+            unset($jsonInsc['account']);
+
+            DB::table('inscriptions')
+                ->where('id', $jsonInsc['id'])
+                ->update($jsonInsc);
+
+            // Commit the transaction
+            DB::commit();
+            return response()->json([["message"=>"ok"]]);
+
+            // Now, $insertedId contains the ID of the inserted row
+        } catch (Exception $e) {
+            // Handle any exceptions that occurred during the transaction
+            DB::rollBack();
+
+            // Handle the error gracefully
+            // For example: return a response with an error message
+            return response()->json([["message"=>"error",'error' => $e]]);
+        }
+
+});
+
+
+Route::post('admin/getinscription', function (Request $request) {
+       
+    $id_inscription = $request->input('id_inscription');
+    Log::info('------> get inscription req received '.$id_inscription);
+   
+    $inscription = DB::select('select * from inscriptions where id= ?', [$id_inscription]);
+   
+
+    $user = DB::select('select * from ach_users where id= ?', [$inscription[0]->id_user]);
+    $account = DB::select('select * from accounts where id= ?', [$inscription[0]->id_account]);
+    //$inscription=$inscription->toArray();
+    //$inscription['user']=$user;
+    //$inscription['account']=$account;
+    $inscription[0]->user=$user[0];
+    $inscription[0]->account=$account[0];
+    unset($inscription[0]->id_user);
+    unset($inscription[0]->id_account);
+
+    return response()->json([$inscription[0]]);
+  
+});
+
+
+Route::post('admin/logininscription', function (Request $request) {
+
+    Log::info('------> login req received ');
+       
+    $email = $request->input('email');
+    $pwd = $request->input('pwd');
+    $user = DB::select('select * from ach_users where email=? and pwd=?', [$email,$pwd]);
+
+    if (empty($user)) {
+        //inscriptin array is empty
+        return response()->json([]);
+    } else {
+        $inscription = DB::select('select * from inscriptions where id_user= ? and state <> "cancelled"', [$user[0]->id]);
+        if (empty($inscription)) {
+            //inscriptin array is empty
+            return response()->json([]);
+        }else{
+            $account = DB::select('select * from accounts where id= ?', [$inscription[0]->id_account]);
+            $inscription[0]->user=$user[0];
+            $inscription[0]->account=$account[0];
+            unset($inscription[0]->id_user);
+            unset($inscription[0]->id_account);
+            return response()->json([$inscription[0]]);
+        }
+    }
+
+  
+});
+
+
+Route::post('admin/getAllinscriptions', function (Request $request) {
+       
+    //$id_inscription = $request->input('id_inscription');
+    Log::info('------> getAllinscriptions  req received ');
+
+    
+
+    $inscriptions_view = DB::select('select * from inscriptions_view');
+
+    for ($i = 0; $i < count($inscriptions_view); $i++){
+        $user = new \stdClass();
+        $account = new \stdClass();
+        $inscriptions_view[$i]->id=$inscriptions_view[$i]->id_inscription;
+        unset($inscriptions_view[$i]->id_inscription);
+        $user->id=$inscriptions_view[$i]->id_user;
+        $user->fullname=$inscriptions_view[$i]->fullname;
+        $user->email=$inscriptions_view[$i]->email;
+        $user->phone=$inscriptions_view[$i]->phone;
+        $user->phone_id=$inscriptions_view[$i]->phone_id;
+        $user->pwd=$inscriptions_view[$i]->pwd;
+        unset($inscriptions_view[$i]->id_user);
+        unset($inscriptions_view[$i]->fullname);
+        unset($inscriptions_view[$i]->email);
+        unset($inscriptions_view[$i]->phone);
+        unset($inscriptions_view[$i]->phone_id);
+        unset($inscriptions_view[$i]->pwd);
+        $inscriptions_view[$i]->user=$user;
+        
+        $account->id=$inscriptions_view[$i]->id_account;
+        $account->type=$inscriptions_view[$i]->type;
+        $account->price=$inscriptions_view[$i]->price;
+        $account->days_of_activation=$inscriptions_view[$i]->days_of_activation;
+        $account->appareils=$inscriptions_view[$i]->appareils;
+        unset($inscriptions_view[$i]->id_account);
+        unset($inscriptions_view[$i]->type);
+        unset($inscriptions_view[$i]->price);
+        unset($inscriptions_view[$i]->phone);
+        unset($inscriptions_view[$i]->days_of_activation);
+        unset($inscriptions_view[$i]->appareils);
+        $inscriptions_view[$i]->account=$account;
+
+    }
+
+    return response()->json($inscriptions_view);
+  
+});
+
+Route::post('admin/deleteuser', function (Request $request) {
+    //Log::info('------> File path');
+    //delete user implies inscription deletion
+
+    $jsonUser = $request->all(); // php array
+    
+    try{
+        $rows_deleted = DB::delete('delete from ach_users where id=?',[$jsonUser['id']]);
+        return response()->json([["message"=>"ok",'rows_deleted'=>$rows_deleted]]);
+    }catch(Exception $e){
+        return response()->json([["message"=>"error",'error' => $e]]);
+    }
+    
+ 
+  
+});
+
+
+
+
+
 
 
 
