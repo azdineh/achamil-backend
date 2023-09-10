@@ -8,6 +8,11 @@ use Illuminate\Support\Facades\Log;
 use Iman\Streamer\VideoStreamer;
 use Intervention\Image\Facades\Image;
 
+use Srmklive\PayPal\Services\PayPal as PayPalClient;
+
+use App\Mail\AchamilMail;
+use Illuminate\Support\Facades\Mail;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -488,6 +493,8 @@ Route::post('admin/getinscription', function (Request $request) {
     Log::info('------> get inscription req received '.$id_inscription);
    
     $inscription = DB::select('select * from inscriptions where id= ?', [$id_inscription]);
+
+    //Log::info("Insc ---->".dd($inscription));
    
 
     $user = DB::select('select * from ach_users where id= ?', [$inscription[0]->id_user]);
@@ -527,11 +534,50 @@ Route::post('admin/logininscription', function (Request $request) {
             $inscription[0]->account=$account[0];
             unset($inscription[0]->id_user);
             unset($inscription[0]->id_account);
-            return response()->json([$inscription[0]]);
+
+            $curr_nb_cnx=$inscription[0]->curr_nb_cnx;
+            if( $curr_nb_cnx < $account[0]->appareils){
+                DB::table('inscriptions')
+                ->where('id', $inscription[0]->id)
+                ->update(
+                    ['curr_nb_cnx'=>$curr_nb_cnx+1]
+                );
+                return response()->json([$inscription[0]]);
+
+            }else{
+                // exced number of connection
+                $inscription[0]->id=-2;
+                return response()->json([$inscription[0]]);
+            }
+            
         }
     }
 
   
+});
+
+Route::post('admin/logoutinscription', function (Request $request) {
+        
+    Log::info('------> logout req received');
+
+    $jsonUser = $request->all(); // JSON data is now in PHP array
+    $user=$jsonUser['user']; 
+
+    $inscription = DB::select('select * from inscriptions where id_user= ? and state <> "cancelled"', [$user['id']]);
+
+    try {
+           
+    $curr_nb_cnx=$inscription[0]->curr_nb_cnx;
+    DB::table('inscriptions')
+        ->where('id', $inscription[0]->id)
+        ->update(
+            ['curr_nb_cnx'=>$curr_nb_cnx-1]
+        );
+        return response()->json([['message'=>'ok']]);
+    }catch(Exception $e){
+        return response()->json([['message'=>'nook','error'=>$e]]);
+    }
+
 });
 
 
@@ -595,10 +641,104 @@ Route::post('admin/deleteuser', function (Request $request) {
         return response()->json([["message"=>"error",'error' => $e]]);
     }
     
- 
   
 });
 
+
+Route::get('admin/paymentsuccess', function (Request $request) {
+    //Log::info('------> File path');
+    //delete user implies inscription deletion
+
+    $order_id = 12345; // Replace with your actual order ID
+    $amount = 100.00; // Replace with the actual payment amount
+
+    return view('paypalsuccess', compact('order_id', 'amount'));
+    
+ 
+});
+
+Route::get('admin/paymentcancel', function (Request $request) {
+    //Log::info('------> File path');
+    //delete user implies inscription deletion
+
+    $order_id = 12345; // Replace with your actual order ID
+    $amount = 100.00; // Replace with the actual payment amount
+
+    return view('paypalcancel', compact('order_id', 'amount'));
+    
+ 
+});
+
+
+
+
+Route::get('admin/paypalconfirmpayment',function (Request $request) {
+
+        //Log::info('------> Payment request :\n'.$request);
+        //Log::info("Id inscription: ".$request['id_inscription']);
+
+        $jsonData = $request->all(); // php array
+        //Log::info(" inscription: ".$request['inscription']);
+
+        $inscription= json_decode("".$request['inscription'],true);
+        $inscription['date_activation']=$request['date_activation'];
+        $inscription['inscription_ref']=$request['inscription_ref'];
+        $inscription['payment_id']=$request['paymentId'];
+        
+        $logMessage = print_r($jsonData, true);
+        Log::info("-----------------> ".$logMessage);
+        $provider = new PayPalClient;
+        $provider->setApiCredentials(config('paypal'));
+        $provider->getAccessToken();
+        $response = $provider->capturePaymentOrder($request['token']);
+        if (isset($response['status']) && $response['status'] == 'COMPLETED') {
+            //update inscription state
+            DB::table('inscriptions')
+                ->where('id', $inscription['id'])
+                ->update(
+                    ['state'=>'activated',
+                    'date_activation'=>$request['date_activation']
+                    ]
+                );
+            //send email
+            Mail::to($inscription['user']['email'])->send(new AchamilMail($inscription));
+            return view('paypalsuccess');
+        } else {
+            return view('paypalcancel');
+        }
+ 
+});
+
+
+
+Route::post('admin/fetchalllessons',function (Request $request) {
+
+    //Log::info('------> Payment request :\n'.$request);
+    //Log::info("Id inscription: ".$request['id_inscription']);
+
+    $main_unity="mokbil";
+    $lessons = DB::select('select * from lessons');
+
+    for ($i = 0; $i < count($lessons); $i++) {
+        //$url = Storage::disk('uploads')->url($unites[$i]->url_pdf);
+        //$url = asset(($unites[$i]->url_pdf));
+        //$unites[$i]->url_pdf=$url;
+        $filename = 'exercices/'.$main_unity.'/lesson_'.$lessons[$i]->id.'.json';
+        if (Storage::disk('appdata')->exists($filename)) {
+            $jsonContent = Storage::disk('appdata')->get($filename);
+            // Parse the JSON content into a PHP array or object
+            $jsonData = json_decode($jsonContent, false); // Use true for array, false for object
+            $lessons[$i]->questions=$jsonData->questions;            
+        }
+
+    } 
+
+    return response()->json($lessons);
+
+    return response()->json($lessons);
+
+
+});
 
 
 
