@@ -109,6 +109,43 @@ Route::post('admin/uploadlesson', function (Request $request) {
   
 });
 
+Route::post('admin/updatelesson', function (Request $request) {
+        
+    Log::info('------> update lesson request received');
+
+    $jsonLesson = $request->all(); // JSON data is now in PHP array
+
+        $logMessage = print_r($jsonLesson, true);
+        Log::info("-----------------> ".$logMessage);
+
+    unset($jsonLesson['questions']);
+    unset($jsonLesson['is_khotata_stored']);
+    unset($jsonLesson['is_video_stored']);
+
+    // Start a transaction
+        DB::beginTransaction();
+
+        try {
+            DB::table('lessons')
+                ->where('id', $jsonLesson['id'])
+                ->update($jsonLesson);
+
+            // Commit the transaction
+            DB::commit();
+            return response()->json([["message"=>"ok"]]);
+
+            // Now, $insertedId contains the ID of the inserted row
+        } catch (Exception $e) {
+            // Handle any exceptions that occurred during the transaction
+            DB::rollBack();
+
+            // Handle the error gracefully
+            // For example: return a response with an error message
+            return response()->json([["message"=>"error",'error' => $e]]);
+        }
+
+});
+
 Route::post('/admin/savequestion', function (Request $request) {
         
     Log::info('------> savequestion req received');
@@ -123,10 +160,20 @@ Route::post('/admin/savequestion', function (Request $request) {
 
     // Generate a unique filename to store the JSON data (optional)
     $fullfilename = 'exercices/'.$main_unity.'/'.'lesson_'.$request->input('id_lesson'). '.json';
-    Log::info('------> savequestion req received :: filename'.$fullfilename);
+    //Log::info('------> savequestion req received :: filename'.$fullfilename);
 
     // Save the JSON data to the storage/app directory
     Storage::disk('appdata')->put($fullfilename, $jsonData);
+
+
+    $jsonData = $request->all(); // php array
+    $logMessage = print_r($jsonData, true);
+    Log::info("-----------------> ".$logMessage);
+
+    
+    DB::table('flags')
+    ->where('id_unity', $request->input('id_unity'))
+    ->update(['laste_date_state'=> now()]);
 
     // Optionally, you can also save the data in a specific subdirectory within storage/app
     // For example, to save in storage/app/json_data/
@@ -496,18 +543,23 @@ Route::post('admin/getinscription', function (Request $request) {
 
     //Log::info("Insc ---->".dd($inscription));
    
+    if(empty($inscription)){
+        return response()->json([]);
+    }else{
+        $user = DB::select('select * from ach_users where id= ?', [$inscription[0]->id_user]);
+        $account = DB::select('select * from accounts where id= ?', [$inscription[0]->id_account]);
+        //$inscription=$inscription->toArray();
+        //$inscription['user']=$user;
+        //$inscription['account']=$account;
+        $inscription[0]->user=$user[0];
+        $inscription[0]->account=$account[0];
+        unset($inscription[0]->id_user);
+        unset($inscription[0]->id_account);
+    
+        return response()->json([$inscription[0]]);
+    }
 
-    $user = DB::select('select * from ach_users where id= ?', [$inscription[0]->id_user]);
-    $account = DB::select('select * from accounts where id= ?', [$inscription[0]->id_account]);
-    //$inscription=$inscription->toArray();
-    //$inscription['user']=$user;
-    //$inscription['account']=$account;
-    $inscription[0]->user=$user[0];
-    $inscription[0]->account=$account[0];
-    unset($inscription[0]->id_user);
-    unset($inscription[0]->id_account);
 
-    return response()->json([$inscription[0]]);
   
 });
 
@@ -585,9 +637,6 @@ Route::post('admin/getAllinscriptions', function (Request $request) {
        
     //$id_inscription = $request->input('id_inscription');
     Log::info('------> getAllinscriptions  req received ');
-
-    
-
     $inscriptions_view = DB::select('select * from inscriptions_view');
 
     for ($i = 0; $i < count($inscriptions_view); $i++){
@@ -676,38 +725,129 @@ Route::get('admin/paypalconfirmpayment',function (Request $request) {
 
         //Log::info('------> Payment request :\n'.$request);
         //Log::info("Id inscription: ".$request['id_inscription']);
-
-        $jsonData = $request->all(); // php array
-        //Log::info(" inscription: ".$request['inscription']);
-
-        $inscription= json_decode("".$request['inscription'],true);
-        $inscription['date_activation']=$request['date_activation'];
-        $inscription['inscription_ref']=$request['inscription_ref'];
-        $inscription['payment_id']=$request['paymentId'];
-        
-        $logMessage = print_r($jsonData, true);
-        Log::info("-----------------> ".$logMessage);
         $provider = new PayPalClient;
         $provider->setApiCredentials(config('paypal'));
         $provider->getAccessToken();
-        $response = $provider->capturePaymentOrder($request['token']);
-        if (isset($response['status']) && $response['status'] == 'COMPLETED') {
-            //update inscription state
-            DB::table('inscriptions')
-                ->where('id', $inscription['id'])
-                ->update(
-                    ['state'=>'activated',
-                    'date_activation'=>$request['date_activation']
-                    ]
-                );
-            //send email
-            Mail::to($inscription['user']['email'])->send(new AchamilMail($inscription));
-            return view('paypalsuccess');
-        } else {
+
+        $jsonData = $request->all(); // php array
+        $logMessage = print_r($jsonData, true);
+        Log::info("-----------------> ".$logMessage);
+        
+        //$inscription= json_decode("".$request['inscription'],true);
+        $id_insc=$request['inscID'];
+        //Log::info("Id inscription: ".$id_insc);
+
+        $inscription = DB::select('select * from inscriptions where id=?', [$id_insc]);
+
+        if (empty($inscription)) {
+            //inscriptin array is empty
             return view('paypalcancel');
+        } else{
+                $account = DB::select('select * from accounts where id= ?', [$inscription[0]->id_account]);
+                $user = DB::select('select * from ach_users where id= ?', [$inscription[0]->id_user]);
+                $inscription[0]->user=$user[0];
+                $inscription[0]->account=$account[0];
+                $inscription[0]->date_activation=$request['date_act'];
+                $inscription[0]->inscription_ref=$request['inscRef'];
+                $inscription[0]->payment_method="منصة Paypal";
+                $inscription[0]->payment_id=$request['paymentId'];
+                unset($inscription[0]->id_user);
+                unset($inscription[0]->id_account);    
+
+                
+                $response = $provider->capturePaymentOrder($request['token']);
+                if (isset($response['status']) && $response['status'] == 'COMPLETED') {
+                    //update inscription state
+                    DB::table('inscriptions')
+                        ->where('id', $inscription[0]->id)
+                        ->update(
+                            [
+                                'state'=>'activated',
+                                'date_activation'=>$request['date_act']
+                            ]
+                        );
+                    //send email
+                    Mail::to($inscription[0]->user->email)->send(new AchamilMail(json_decode(json_encode($inscription[0]),true)));
+                    return view('paypalsuccess');
+                } else {
+                    return view('paypalcancel');
+                }
         }
+
+
+
  
 });
+
+
+Route::post('admin/manualconfirmpayment',function (Request $request) {
+
+    $jsonData = $request->all(); // php array
+    $logMessage = print_r($jsonData, true);
+    Log::info("-----------------> ".$logMessage);
+    
+    //$inscription= json_decode("".$request['inscription'],true);
+    $id_insc=$request['inscID'];
+    $date_activ=$request['date_activ'];
+    $ref_insc=$request['inscRef'];
+    //Log::info("Id inscription: ".$id_insc);
+
+    $inscription= DB::select('select * from inscriptions_view where id_inscription=?',[$id_insc]);
+
+    if(empty($inscription)){
+        return response()->json([["message"=>"error",'error' => "no inscription"]]);
+    }else{
+
+        $user = new \stdClass();
+        $account = new \stdClass();
+        $inscription[0]->id=$inscription[0]->id_inscription;
+        $inscription[0]->date_activation=$date_activ;
+        $inscription[0]->inscription_ref=$ref_insc;
+        $inscription[0]->payment_method="تحويل بنكي";
+        unset($inscription[0]->id_inscription);
+        $user->id=$inscription[0]->id_user;
+        $user->fullname=$inscription[0]->fullname;
+        $user->email=$inscription[0]->email;
+        $user->phone=$inscription[0]->phone;
+        $user->phone_id=$inscription[0]->phone_id;
+        $user->pwd=$inscription[0]->pwd;
+        unset($inscription[0]->id_user);
+        unset($inscription[0]->fullname);
+        unset($inscription[0]->email);
+        unset($inscription[0]->phone);
+        unset($inscription[0]->phone_id);
+        unset($inscription[0]->pwd);
+        $inscription[0]->user=$user;
+        
+        $account->id=$inscription[0]->id_account;
+        $account->type=$inscription[0]->type;
+        $account->price=$inscription[0]->price;
+        $account->days_of_activation=$inscription[0]->days_of_activation;
+        $account->appareils=$inscription[0]->appareils;
+        unset($inscription[0]->id_account);
+        unset($inscription[0]->type);
+        unset($inscription[0]->price);
+        unset($inscription[0]->phone);
+        unset($inscription[0]->days_of_activation);
+        unset($inscription[0]->appareils);
+        $inscription[0]->account=$account;
+            //update inscription state
+    DB::table('inscriptions')
+    ->where('id', $inscription[0]->id)
+    ->update(
+       [ 'state'=>'activated',
+         'date_activation'=>$inscription[0]->date_activation]
+        );
+    //send email
+    Mail::to($inscription[0]->user->email)->send(new AchamilMail(json_decode(json_encode($inscription[0]),true)));
+    return response()->json([["message"=>"ok"]]);
+
+    }
+
+    
+});
+
+
 
 
 
@@ -737,6 +877,24 @@ Route::post('admin/fetchalllessons',function (Request $request) {
 
     return response()->json($lessons);
 
+
+});
+
+
+
+Route::post('admin/fetchunityflags',function (Request $request) {
+
+    //Log::info('------> Payment request :\n'.$request);
+    //Log::info("Id inscription: ".$request['id_inscription']);
+
+    //$unity_id=$request['id'];
+    $flags = DB::select('select * from flags order by id_unity asc');
+    
+    if(empty($flags)){
+        return response()->json([]);
+    }else{
+        return response()->json($flags);
+    }
 
 });
 

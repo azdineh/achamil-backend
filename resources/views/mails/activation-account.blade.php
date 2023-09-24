@@ -14,7 +14,7 @@
             <table align="center" bgcolor="#ffffff" style="border-left: 10px solid white; border-right: 10px solid white; max-width: 600px; width: 100%;">
                 <tr height="80">
                     <td align="center" class="vertical-align-middle" style="color: #464646; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; line-height: 16px; vertical-align: middle;">
-                      <h1>الشامل في تدريس السلك الإبتدائي</h1>
+                    <h1 style="line-height: 1.5">الشامل في تدريس السلك الإبتدائي</h1>
                     </td>
                 </tr>
             </table>
@@ -83,6 +83,7 @@
 الهاتف: {{$inscription['user']['phone']}} <br/>
 عدد المستخدمين: {{$inscription['account']['appareils']}} <br/>
 المبلغ بالدرهم: {{$inscription['account']['price']}} DH <br/>
+طريقة الدفع: {{$inscription['payment_method']}}<br/>
 صالحة ل: {{$inscription['account']['days_of_activation']}} يوما <br/>
   <br/>                                  
 <strong>معلومات تسجيل الدخول: </strong>
@@ -106,7 +107,9 @@
                             <td width="36" style="color: #464646; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; line-height: 16px; vertical-align: top;"></td>
                             <td style="color: #464646; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; line-height: 16px; vertical-align: top;">
                                 <p style="color: #464646; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; line-height: 22px; margin: 0;">
+                                @if(isset($inscription['payment_id']))
                                 <strong>Transaction reference: {{$inscription['payment_id']}} </strong></p>
+                                @endif
                                 <p style="color: #464646; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; line-height: 22px; margin: 0;">تاريخ التفعيل: {{$inscription['date_activation']}}</p>
                                 <p style="color: #464646; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; line-height: 22px; margin: 0;"></p>
                             </td>
