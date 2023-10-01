@@ -444,13 +444,16 @@ Route::post('admin/saveinscription', function (Request $request) {
         
     Log::info('------> inscription req received');
 
+
+
     $jsonInsc = $request->all(); // JSON data is now in PHP array
+
+    $logMessage = print_r($jsonInsc, true);
+    Log::info("-----------------> ".$logMessage);
 
     // Start a transaction
         DB::beginTransaction();
-
         try {
-           
             unset($jsonInsc['user']['used_unities']);
             $jsonInsc['user']['id']=null;
             DB::table('ach_users')->insert([
@@ -460,13 +463,21 @@ Route::post('admin/saveinscription', function (Request $request) {
             $insertedIdUser=-1;
             $insertedIdUser = DB::getPdo()->lastInsertId();
 
-            
             $jsonInsc['id_user']=$insertedIdUser;
             $jsonInsc['id_account']=$jsonInsc['account']['id'];
 
+
+            $jsonInsc['id']=null;
+            $jsonInsc['curr_nb_cnx']=1;
+
+            DB::table('devices')->insert([
+                "id"=>null,
+                "phone_id"=>$jsonInsc['user']['main_user_phone_id'],
+                "id_user"=>$insertedIdUser
+            ]);
+
             unset($jsonInsc['user']);
             unset($jsonInsc['account']);
-            $jsonInsc['id']=null;
             DB::table('inscriptions')->insert([
                 $jsonInsc
             ]);
@@ -570,6 +581,7 @@ Route::post('admin/logininscription', function (Request $request) {
        
     $email = $request->input('email');
     $pwd = $request->input('pwd');
+    $localphoneid=$request->input('local_phone_id');
     $user = DB::select('select * from ach_users where email=? and pwd=?', [$email,$pwd]);
 
     if (empty($user)) {
@@ -588,12 +600,22 @@ Route::post('admin/logininscription', function (Request $request) {
             unset($inscription[0]->id_account);
 
             $curr_nb_cnx=$inscription[0]->curr_nb_cnx;
-            if( $curr_nb_cnx < $account[0]->appareils){
-                DB::table('inscriptions')
-                ->where('id', $inscription[0]->id)
-                ->update(
-                    ['curr_nb_cnx'=>$curr_nb_cnx+1]
-                );
+            if( $curr_nb_cnx <= $account[0]->appareils){
+                
+                $r=DB::select('select * from devices where phone_id=? and id_user=?',[$localphoneid,$user[0]->id]);
+                if(empty($r)){
+                    DB::table('devices')->insert(
+                    ["id"=>null,"phone_id"=>$localphoneid,"id_user"=> $user[0]->id] );
+                    DB::table('inscriptions')
+                    ->where('id', $inscription[0]->id)
+                    ->update(
+                        ['curr_nb_cnx'=>$curr_nb_cnx+1]
+                    );
+                }else{
+                    
+                }
+
+                
                 return response()->json([$inscription[0]]);
 
             }else{
@@ -614,12 +636,19 @@ Route::post('admin/logoutinscription', function (Request $request) {
 
     $jsonUser = $request->all(); // JSON data is now in PHP array
     $user=$jsonUser['user']; 
+    $local_phone_id=$jsonUser['local_phone_id'];
 
     $inscription = DB::select('select * from inscriptions where id_user= ? and state <> "cancelled"', [$user['id']]);
 
     try {
            
     $curr_nb_cnx=$inscription[0]->curr_nb_cnx;
+
+    DB::table('devices')
+    ->where('phone_id', $local_phone_id)
+    ->where('id_user', $user['id'])
+    ->delete();
+
     DB::table('inscriptions')
         ->where('id', $inscription[0]->id)
         ->update(
@@ -648,13 +677,13 @@ Route::post('admin/getAllinscriptions', function (Request $request) {
         $user->fullname=$inscriptions_view[$i]->fullname;
         $user->email=$inscriptions_view[$i]->email;
         $user->phone=$inscriptions_view[$i]->phone;
-        $user->phone_id=$inscriptions_view[$i]->phone_id;
+        $user->main_user_phone_id=$inscriptions_view[$i]->main_user_phone_id;
         $user->pwd=$inscriptions_view[$i]->pwd;
         unset($inscriptions_view[$i]->id_user);
         unset($inscriptions_view[$i]->fullname);
         unset($inscriptions_view[$i]->email);
         unset($inscriptions_view[$i]->phone);
-        unset($inscriptions_view[$i]->phone_id);
+        unset($inscriptions_view[$i]->main_user_phone_id);
         unset($inscriptions_view[$i]->pwd);
         $inscriptions_view[$i]->user=$user;
         
@@ -809,13 +838,13 @@ Route::post('admin/manualconfirmpayment',function (Request $request) {
         $user->fullname=$inscription[0]->fullname;
         $user->email=$inscription[0]->email;
         $user->phone=$inscription[0]->phone;
-        $user->phone_id=$inscription[0]->phone_id;
+        $user->main_user_phone_id=$inscription[0]->main_user_phone_id;
         $user->pwd=$inscription[0]->pwd;
         unset($inscription[0]->id_user);
         unset($inscription[0]->fullname);
         unset($inscription[0]->email);
         unset($inscription[0]->phone);
-        unset($inscription[0]->phone_id);
+        unset($inscription[0]->main_user_phone_id);
         unset($inscription[0]->pwd);
         $inscription[0]->user=$user;
         
