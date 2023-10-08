@@ -170,10 +170,19 @@ Route::post('/admin/savequestion', function (Request $request) {
     $logMessage = print_r($jsonData, true);
     Log::info("-----------------> ".$logMessage);
 
-    
-    DB::table('flags')
-    ->where('id_unity', $request->input('id_unity'))
-    ->update(['laste_date_state'=> now()]);
+    $flag_lesson = DB::select('select * from flags where id_lesson= ? ', [$request->input('id_lesson')]);
+    if(empty($flag_lesson)){
+        DB::table('flags')
+        ->insert(['id'=>null,'action'=>"update",'id_lesson'=> $request->input('id_lesson'),'laste_date_state'=> now()]);
+
+    }
+    else{
+        DB::table('flags')
+        ->where('id_lesson', $request->input('id_lesson'))
+        ->where('action', "update")
+        ->update(['laste_date_state'=> now()]);
+    }
+;
 
     // Optionally, you can also save the data in a specific subdirectory within storage/app
     // For example, to save in storage/app/json_data/
@@ -904,7 +913,36 @@ Route::post('admin/fetchalllessons',function (Request $request) {
 
     return response()->json($lessons);
 
+    //return response()->json($lessons);
+
+
+});
+
+Route::post('admin/fetchlesson',function (Request $request) {
+
+    //Log::info('------> Payment request :\n'.$request);
+    //Log::info("Id inscription: ".$request['id_inscription']);
+
+    $main_unity="mokbil";
+    $lessons = DB::select('select * from lessons where id=?',[$request['id_lesson']]);
+
+    for ($i = 0; $i < count($lessons); $i++) {
+        //$url = Storage::disk('uploads')->url($unites[$i]->url_pdf);
+        //$url = asset(($unites[$i]->url_pdf));
+        //$unites[$i]->url_pdf=$url;
+        $filename = 'exercices/'.$main_unity.'/lesson_'.$lessons[$i]->id.'.json';
+        if (Storage::disk('appdata')->exists($filename)) {
+            $jsonContent = Storage::disk('appdata')->get($filename);
+            // Parse the JSON content into a PHP array or object
+            $jsonData = json_decode($jsonContent, false); // Use true for array, false for object
+            $lessons[$i]->questions=$jsonData->questions;            
+        }
+
+    } 
+
     return response()->json($lessons);
+
+    //return response()->json($lessons);
 
 
 });
@@ -917,7 +955,7 @@ Route::post('admin/fetchunityflags',function (Request $request) {
     //Log::info("Id inscription: ".$request['id_inscription']);
 
     //$unity_id=$request['id'];
-    $flags = DB::select('select * from flags order by id_unity asc');
+    $flags = DB::select('select * from flags order by id asc');
     
     if(empty($flags)){
         return response()->json([]);
