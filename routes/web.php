@@ -110,9 +110,7 @@ Route::post('admin/uploadlesson', function (Request $request) {
 });
 
 Route::post('admin/updatelesson', function (Request $request) {
-        
     Log::info('------> update lesson request received');
-
     $jsonLesson = $request->all(); // JSON data is now in PHP array
 
         $logMessage = print_r($jsonLesson, true);
@@ -146,8 +144,15 @@ Route::post('admin/updatelesson', function (Request $request) {
 
 });
 
+Route::post('admin/reorderlessons',function(Request $request){
+    $a=$request->input('textIds');
+    $b=$request->input('textOrders');
+    $c=$request->input('countt');
+    $result = DB::select('CALL update_lessons_orders(?, ?,?)', [$a,$b,$c]);
+    return response()->json([['message' => 'ok']]);
+});
+
 Route::post('/admin/savequestion', function (Request $request) {
-        
     Log::info('------> savequestion req received');
     // Validate the incoming request to ensure it contains JSON data
     $request->validate([
@@ -165,7 +170,6 @@ Route::post('/admin/savequestion', function (Request $request) {
     // Save the JSON data to the storage/app directory
     Storage::disk('appdata')->put($fullfilename, $jsonData);
 
-
     $jsonData = $request->all(); // php array
     $logMessage = print_r($jsonData, true);
     Log::info("-----------------> ".$logMessage);
@@ -174,23 +178,15 @@ Route::post('/admin/savequestion', function (Request $request) {
     if(empty($flag_lesson)){
         DB::table('flags')
         ->insert(['id'=>null,'action'=>"update",'id_lesson'=> $request->input('id_lesson'),'laste_date_state'=> now()]);
-
     }
     else{
         DB::table('flags')
         ->where('id_lesson', $request->input('id_lesson'))
         ->where('action', "update")
         ->update(['laste_date_state'=> now()]);
-    }
-;
+    };
 
-    // Optionally, you can also save the data in a specific subdirectory within storage/app
-    // For example, to save in storage/app/json_data/
-    // Storage::put('json_data/' . $filename, $jsonData);
-
-    // You can return a response to acknowledge the successful storage if needed
     return response()->json([['message' => 'ok']]);
-
 });
 
 Route::post('admin/fetchlessons', function (Request $request) {
