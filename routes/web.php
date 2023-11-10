@@ -174,21 +174,11 @@ Route::post('/admin/savequestion', function (Request $request) {
     $logMessage = print_r($jsonData, true);
     Log::info("-----------------> ".$logMessage);
 
-    $flag_lesson = DB::select('select * from flags where id_lesson= ? ', [$request->input('id_lesson')]);
-    if(empty($flag_lesson)){
-        DB::table('flags')
-        ->insert(['id'=>null,'action'=>"update",'id_lesson'=> $request->input('id_lesson'),'laste_date_state'=> now()]);
-    }
-    else{
-        DB::table('flags')
-        ->where('id_lesson', $request->input('id_lesson'))
-        ->where('action', "update")
-        ->update(['laste_date_state'=> now()]);
-    };
-
+    $result = DB::select('CALL inform_updates_table();');
     return response()->json([['message' => 'ok']]);
 });
 
+//by id_unity
 Route::post('admin/fetchlessons', function (Request $request) {
        
     $id_unity = $request->input('id_unity');
@@ -891,7 +881,7 @@ Route::post('admin/fetchalllessons',function (Request $request) {
     //Log::info("Id inscription: ".$request['id_inscription']);
 
     $main_unity="mokbil";
-    $lessons = DB::select('select * from lessons');
+    $lessons = DB::select('select * from lessons ORDER BY id_unity ASC, order_lesson asc');
 
     for ($i = 0; $i < count($lessons); $i++) {
         //$url = Storage::disk('uploads')->url($unites[$i]->url_pdf);
@@ -957,6 +947,18 @@ Route::post('admin/fetchunityflags',function (Request $request) {
         return response()->json([]);
     }else{
         return response()->json($flags);
+    }
+
+});
+
+
+Route::post('admin/fetchupdate',function (Request $request) {
+    $updates = DB::select('select * from updates');
+    
+    if(empty($updates)){
+        return response()->json([]);
+    }else{
+        return response()->json($updates);
     }
 
 });
